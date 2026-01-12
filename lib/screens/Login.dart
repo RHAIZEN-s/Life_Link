@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../services/local_user_service.dart';
 import '../models/user_model.dart';
 import '../main.dart'; // To access MainNavigation
@@ -11,8 +13,8 @@ class LogIn extends StatefulWidget {
 }
 
 class LogInState extends State<LogIn> {
-  final TextEditingController phoneController = TextEditingController();
-  final TextEditingController otpController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   late String userRole;
 
@@ -23,41 +25,47 @@ class LogInState extends State<LogIn> {
   }
 
   void _login() async {
-    if (phoneController.text.isEmpty || otpController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields")),
-      );
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
       return;
     }
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
 
-    final phone = phoneController.text.trim();
-    final otp = otpController.text.trim();
-
-    // ADMIN LOGIN
-    if (phone == "9999999999" && otp == "1234") {
+    // ADMIN LOGIN (example admin credentials)
+    if (email == "admin@life_link.com" && password == "admin1234") {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const MainNavigation(isAdmin: true),
-        ),
+        MaterialPageRoute(builder: (_) => const MainNavigation(isAdmin: true)),
       );
       return;
     }
 
-    // USER LOGIN
-    final existingUser = await LocalUserService.getUserOrNull();
-
-    if (existingUser == null) {
-      Navigator.pushReplacementNamed(context, '/initial_profile');
-      return;
-    }
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const MainNavigation(isAdmin: false),
-      ),
+    // USER LOGIN via backend
+    final response = await http.post(
+      Uri.parse('http://localhost:3000/auth/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'password': password}),
     );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      await LocalUserService.saveEmail(email);
+      // Optionally parse user info from response and save locally
+      // For now, just navigate to main app
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainNavigation(isAdmin: false)),
+      );
+    } else {
+      String msg = 'Login failed';
+      try {
+        final data = jsonDecode(response.body);
+        if (data['message'] != null) msg = data['message'];
+      } catch (_) {}
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
   }
 
   // ------------------------------------------------------------
@@ -86,11 +94,7 @@ class LogInState extends State<LogIn> {
               const SizedBox(height: 50),
 
               // MINI LOGO (ASSET)
-              assetImage(
-                "assets/images/minilogo.png",
-                width: 160,
-                height: 40,
-              ),
+              assetImage("assets/images/minilogo.png", width: 160, height: 40),
 
               const SizedBox(height: 75),
 
@@ -105,18 +109,15 @@ class LogInState extends State<LogIn> {
 
               const SizedBox(height: 30),
 
-              // PHONE INPUT
-              _boxInput(
-                phoneController,
-                "Phone Number",
-                TextInputType.phone,
-              ),
+              // EMAIL INPUT
+              _boxInput(emailController, "Email", TextInputType.emailAddress),
 
-              // OTP INPUT
+              // PASSWORD INPUT
               _boxInput(
-                otpController,
-                "OTP",
-                TextInputType.number,
+                passwordController,
+                "Password",
+                TextInputType.text,
+                obscureText: true,
               ),
 
               const SizedBox(height: 20),
@@ -127,10 +128,7 @@ class LogInState extends State<LogIn> {
                   alignment: Alignment.centerRight,
                   child: Text(
                     "Forget password?",
-                    style: TextStyle(
-                      color: Color(0xFF484848),
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Color(0xFF484848), fontSize: 14),
                   ),
                 ),
               ),
@@ -143,8 +141,10 @@ class LogInState extends State<LogIn> {
                 child: GestureDetector(
                   onTap: _login,
                   child: Container(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 20,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
@@ -194,9 +194,12 @@ class LogInState extends State<LogIn> {
     );
   }
 
- 
   Widget _boxInput(
-      TextEditingController ctrl, String hint, TextInputType type) {
+    TextEditingController ctrl,
+    String hint,
+    TextInputType type, {
+    bool obscureText = false,
+  }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
       decoration: BoxDecoration(
@@ -205,11 +208,14 @@ class LogInState extends State<LogIn> {
       child: TextField(
         controller: ctrl,
         keyboardType: type,
+        obscureText: obscureText,
         decoration: InputDecoration(
           hintText: hint,
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 20,
+            horizontal: 10,
+          ),
         ),
       ),
     );

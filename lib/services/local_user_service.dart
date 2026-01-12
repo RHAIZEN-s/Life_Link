@@ -44,4 +44,20 @@ class LocalUserService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
+
+  // ------------------------------------------------------------
+  // SAVE EMAIL LOCALLY
+  // ------------------------------------------------------------
+  static Future<void> saveEmail(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('email', email);
+  }
+
+  // ------------------------------------------------------------
+  // GET EMAIL IF EXISTS (returns null if not found)
+  // ------------------------------------------------------------
+  static Future<String?> getEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('email');
+  }
 }

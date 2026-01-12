@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 import '../models/user_model.dart';
 import '../services/local_user_service.dart';
 
@@ -18,8 +21,9 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
   String? _gender;
   String? _bloodGroup;
 
-  final TextEditingController _phoneController =
-      TextEditingController(text: "+91 98765 43210");
+  final TextEditingController _phoneController = TextEditingController(
+    text: "+91 98765 43210",
+  );
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
 
@@ -33,7 +37,7 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
     'O+',
     'O-',
     'AB+',
-    'AB-'
+    'AB-',
   ];
 
   // Pick DOB
@@ -56,19 +60,45 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
   // Save & Continue
   void _saveAndContinue() async {
     if (!_formKey.currentState!.validate()) return;
-
     _formKey.currentState!.save();
 
-    // Dummy defaults
-    final user = UserModel(
-      fullName: _fullName ?? "User",
-      bloodGroup: _bloodGroup ?? "A+",
-      donations: 0,
+    // Prepare data
+    final Map<String, dynamic> profileData = {
+      'fullName': _fullName ?? '',
+      'dob': _dob != null
+          ? _dob!.toIso8601String().split('T')[0]
+          : '', // YYYY-MM-DD
+      'gender': _gender ?? '',
+      'bloodGroup': _bloodGroup ?? '',
+      'phone': _phoneController.text.trim(),
+      'email': _emailController.text.trim(),
+      'address': _addressController.text.trim(),
+      // 'photo': null // Add this if you implement photo upload
+    };
+
+    final response = await http.post(
+      Uri.parse('http://localhost:3000/profile/initial'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(profileData),
     );
 
-    await LocalUserService.saveUser(user);
-
-    Navigator.pushReplacementNamed(context, '/mainnav');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      // Save locally as before
+      final user = UserModel(
+        fullName: _fullName ?? "User",
+        bloodGroup: _bloodGroup ?? "A+",
+        donations: 0,
+      );
+      await LocalUserService.saveUser(user);
+      Navigator.pushReplacementNamed(context, '/mainnav');
+    } else {
+      String msg = 'Profile save failed';
+      try {
+        final data = jsonDecode(response.body);
+        if (data['message'] != null) msg = data['message'];
+      } catch (_) {}
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
   }
 
   @override
@@ -83,7 +113,10 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
             children: [
               // HEADER
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 22,
+                  horizontal: 16,
+                ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFE63946), Color(0xFFFF6B6B)],
@@ -95,9 +128,10 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
                     Text(
                       'Complete Your Profile',
                       style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white),
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
                     SizedBox(height: 6),
                     Text(
@@ -126,9 +160,10 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
                         'Basic Details',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1D3557)),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1D3557),
+                        ),
                       ),
                       const SizedBox(height: 14),
 
@@ -140,17 +175,18 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           border: Border.all(
-                              color:
-                                  const Color(0xFFE63946).withOpacity(0.4),
-                              width: 3),
+                            color: const Color(0xFFE63946).withOpacity(0.4),
+                            width: 3,
+                          ),
                           borderRadius: BorderRadius.circular(18),
                         ),
                         child: const Text(
                           "Upload Photo\n(Not active)",
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                              color: Color(0xFFE63946),
-                              fontWeight: FontWeight.bold),
+                            color: Color(0xFFE63946),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
 
@@ -161,8 +197,7 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
                       TextFormField(
                         decoration: _inputDecoration("Enter your name"),
                         onSaved: (v) => _fullName = v?.trim(),
-                        validator: (v) =>
-                            v!.isEmpty ? "Enter your name" : null,
+                        validator: (v) => v!.isEmpty ? "Enter your name" : null,
                       ),
 
                       const SizedBox(height: 12),
@@ -190,12 +225,12 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
                       DropdownButtonFormField(
                         decoration: _inputDecoration("Select gender"),
                         items: _genderOptions
-                            .map((e) =>
-                                DropdownMenuItem(value: e, child: Text(e)))
+                            .map(
+                              (e) => DropdownMenuItem(value: e, child: Text(e)),
+                            )
                             .toList(),
                         onChanged: (v) => _gender = v,
-                        validator: (v) =>
-                            v == null ? "Select gender" : null,
+                        validator: (v) => v == null ? "Select gender" : null,
                       ),
 
                       const SizedBox(height: 12),
@@ -205,8 +240,9 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
                       DropdownButtonFormField(
                         decoration: _inputDecoration("Select"),
                         items: _bloodOptions
-                            .map((e) =>
-                                DropdownMenuItem(value: e, child: Text(e)))
+                            .map(
+                              (e) => DropdownMenuItem(value: e, child: Text(e)),
+                            )
                             .toList(),
                         onChanged: (v) => _bloodGroup = v,
                         validator: (v) =>
@@ -215,12 +251,11 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
 
                       const SizedBox(height: 12),
 
-                      // Phone (disabled)
+                      // Phone (enabled for user input)
                       _label("Phone Number"),
                       TextFormField(
                         controller: _phoneController,
-                        enabled: false,
-                        decoration: _inputDecoration("Verified number"),
+                        decoration: _inputDecoration("Enter phone number"),
                       ),
 
                       const SizedBox(height: 12),
@@ -251,20 +286,22 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
                           backgroundColor: const Color(0xFFE63946),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                         child: const Text(
                           "Save & Continue",
                           style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
                         ),
-                      )
+                      ),
                     ],
                   ),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -274,15 +311,16 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
 
   // Helpers
   Widget _label(String title) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(
-          title,
-          style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1D3557)),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Text(
+      title,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF1D3557),
+      ),
+    ),
+  );
 
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(

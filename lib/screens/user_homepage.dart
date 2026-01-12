@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../services/local_user_service.dart';
+import '../models/user_model.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -9,11 +13,15 @@ class UserHomePage extends StatefulWidget {
 }
 
 class _UserHomePageState extends State<UserHomePage> {
-  // ------------------ DYNAMIC USER DATA (Later from API / Local storage)
-  final String userName = "Rahul Kumar";
-  final String bloodType = "A+";
-  final int donations = 5;
-  final int points = 850;
+  // Dynamic user data
+  String userName = "";
+  String bloodType = "";
+  int donations = 0;
+  int points = 0;
+  String userEmail = "";
+
+  List<Map<String, dynamic>> nearbyRequests = [];
+  List<Map<String, dynamic>> upcomingCamps = [];
 
   // ------------------ MAP
   late GoogleMapController _mapController;
@@ -26,6 +34,62 @@ class _UserHomePageState extends State<UserHomePage> {
       infoWindow: InfoWindow(title: 'Apollo Hospital'),
     ),
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserAndHomeData();
+  }
+
+  Future<void> _loadUserAndHomeData() async {
+    final email = await LocalUserService.getEmail();
+    print(
+      '[DEBUG] Loaded email from SharedPreferences: '
+      '\u001b[33m$email\u001b[0m',
+    );
+    if (email != null && email.isNotEmpty) {
+      print('[DEBUG] Calling _fetchHomeData with email: $email');
+      userEmail = email;
+      await _fetchHomeData(userEmail);
+    } else {
+      print('[DEBUG] Not calling _fetchHomeData: email missing');
+    }
+  }
+
+  Future<void> _fetchHomeData(String email) async {
+    print('[DEBUG] Entered _fetchHomeData with email: $email');
+    if (email.isEmpty) {
+      print('[DEBUG] Early return: email is empty');
+      return;
+    }
+    final url = 'http://localhost:3000/home?email=$email';
+    print(
+      '[DEBUG] Fetching home data from: '
+      '\u001b[36m$url\u001b[0m',
+    );
+    try {
+      final response = await http.get(Uri.parse(url));
+      print('[DEBUG] API response status: ${response.statusCode}');
+      print('[DEBUG] API response body: ${response.body}');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          userName = data['userStats']['userName'] ?? "";
+          bloodType = data['userStats']['bloodType'] ?? "";
+          donations = data['userStats']['donations'] ?? 0;
+          points = data['userStats']['points'] ?? 0;
+          nearbyRequests = List<Map<String, dynamic>>.from(
+            data['nearbyRequests'] ?? [],
+          );
+          upcomingCamps = List<Map<String, dynamic>>.from(
+            data['upcomingCamps'] ?? [],
+          );
+        });
+      }
+    } catch (e) {
+      print('[DEBUG] Error fetching home data: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,10 +147,7 @@ class _UserHomePageState extends State<UserHomePage> {
             ],
           ),
           const SizedBox(height: 20),
-          const Text(
-            "Welcome back,",
-            style: TextStyle(color: Colors.white70),
-          ),
+          const Text("Welcome back,", style: TextStyle(color: Colors.white70)),
           Text(
             userName,
             style: const TextStyle(
@@ -127,10 +188,7 @@ class _UserHomePageState extends State<UserHomePage> {
           children: [
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Text(
@@ -183,10 +241,7 @@ class _UserHomePageState extends State<UserHomePage> {
             child: const Row(
               children: [
                 Expanded(
-                  child: Text(
-                    "Search",
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                  child: Text("Search", style: TextStyle(color: Colors.grey)),
                 ),
                 Icon(Icons.search),
               ],
@@ -204,26 +259,20 @@ class _UserHomePageState extends State<UserHomePage> {
       child: Column(
         children: [
           _sectionHeader("Nearby Requests"),
-          _requestCard(
-            bloodType: "A+",
-            hospital: "Apollo Hospital",
-            location: "Pune, Maharashtra",
-            distance: "2.3 km",
-            time: "15 min ago",
-            units: "2 units",
-            urgent: true,
-            color: const Color(0xFFE63946),
-          ),
-          _requestCard(
-            bloodType: "B+",
-            hospital: "Ruby Hall Clinic",
-            location: "Pune, Maharashtra",
-            distance: "5.1 km",
-            time: "1 hour ago",
-            units: "1 unit",
-            urgent: false,
-            color: const Color(0xFF06D6A0),
-          ),
+          for (final req in nearbyRequests)
+            _requestCard(
+              bloodType: req['bloodType'] ?? '',
+              hospital: req['hospital'] ?? '',
+              location: req['location'] ?? '',
+              distance: req['distance'] ?? '',
+              time: req['timeAgo'] ?? '',
+              units:
+                  "${req['units'] ?? ''} unit${req['units'] == 1 ? '' : 's'}",
+              urgent: req['urgent'] ?? false,
+              color: (req['urgent'] ?? false)
+                  ? const Color(0xFFE63946)
+                  : const Color(0xFF06D6A0),
+            ),
         ],
       ),
     );
@@ -263,7 +312,9 @@ class _UserHomePageState extends State<UserHomePage> {
                 child: Text(
                   bloodType,
                   style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -271,18 +322,23 @@ class _UserHomePageState extends State<UserHomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(hospital,
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(location,
-                        style: const TextStyle(
-                            color: Colors.grey, fontSize: 12)),
+                    Text(
+                      hospital,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      location,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
                   ],
                 ),
               ),
               if (urgent)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red,
                     borderRadius: BorderRadius.circular(12),
@@ -290,9 +346,10 @@ class _UserHomePageState extends State<UserHomePage> {
                   child: const Text(
                     "URGENT",
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
             ],
@@ -314,7 +371,8 @@ class _UserHomePageState extends State<UserHomePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: color,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () {},
               child: const Text("Respond to Request"),
@@ -332,18 +390,13 @@ class _UserHomePageState extends State<UserHomePage> {
       child: Column(
         children: [
           _sectionHeader("Upcoming Blood Camps"),
-          _campCard(
-            date: "November 15, 2025 • 9:00 AM - 5:00 PM",
-            title: "Community Health Center",
-            location: "Shivajinagar, Pune",
-            color: const Color(0xFF457B9D),
-          ),
-          _campCard(
-            date: "November 20, 2025 • 10:00 AM - 4:00 PM",
-            title: "City Hospital Blood Drive",
-            location: "Andheri, Mumbai",
-            color: const Color(0xFFE63946),
-          ),
+          for (final camp in upcomingCamps)
+            _campCard(
+              date: "${camp['date']} • ${camp['time']}",
+              title: camp['title'] ?? '',
+              location: camp['location'] ?? '',
+              color: const Color(0xFF457B9D),
+            ),
         ],
       ),
     );
@@ -367,11 +420,14 @@ class _UserHomePageState extends State<UserHomePage> {
         children: [
           Text(date, style: const TextStyle(color: Colors.white70)),
           const SizedBox(height: 6),
-          Text(title,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(location, style: const TextStyle(color: Colors.white70)),
           const SizedBox(height: 12),
@@ -393,13 +449,11 @@ class _UserHomePageState extends State<UserHomePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title,
-            style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold)),
-        const Text(
-          "See All →",
-          style: TextStyle(color: Colors.red),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
+        const Text("See All →", style: TextStyle(color: Colors.red)),
       ],
     );
   }
