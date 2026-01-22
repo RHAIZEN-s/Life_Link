@@ -99,15 +99,28 @@ class _AutoCarouselState extends State<AutoCarousel>
         alignment: Alignment.bottomCenter,
         children: [
           // ---------------- PAGE TRANSITION ----------------
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 800),
-            switchInCurve: Curves.easeInOut,
-            switchOutCurve: Curves.easeInOut,
-            transitionBuilder: (child, animation) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            child: _pages[_currentIndex],
-          ),
+AnimatedSwitcher(
+  duration: const Duration(milliseconds: 700),
+  switchInCurve: Curves.easeInOutCubic,
+  switchOutCurve: Curves.easeInOutCubic,
+  transitionBuilder: (child, animation) {
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.05, 0),
+          end: Offset.zero,
+        ).animate(animation),
+        child: child,
+      ),
+    );
+  },
+  child: KeyedSubtree(
+    key: ValueKey(_currentIndex), // 🔥 THIS FIXES FREEZING
+    child: _pages[_currentIndex],
+  ),
+),
+
 
           // ---------------- DOT INDICATORS ----------------
           Positioned(

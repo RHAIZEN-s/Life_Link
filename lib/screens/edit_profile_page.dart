@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/local_user_service.dart';
 import '../models/user_model.dart';
+import 'dart:convert';
+
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({Key? key}) : super(key: key);
@@ -44,15 +46,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // ------------------------------------------------------------
   // PICK PHOTO
   // ------------------------------------------------------------
-  Future<void> pickPhoto() async {
-    final result =
-        await FilePicker.platform.pickFiles(type: FileType.image);
-    if (result != null && result.files.single.path != null) {
-      setState(() {
-        _photo = FileImage(File(result.files.single.path!));
-      });
-    }
+Future<void> pickPhoto() async {
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.image,
+    withData: true, // 🔥 REQUIRED FOR WEB
+  );
+
+  if (result != null && result.files.single.bytes != null) {
+    final bytes = result.files.single.bytes!;
+    final base64Image = base64Encode(bytes);
+
+    setState(() {
+      _photo = MemoryImage(bytes);
+    });
+
+    // ✅ SAVE IMAGE FOR ALL PLATFORMS
+    await LocalUserService.saveProfilePhotoBase64(base64Image);
   }
+}
+
 
   // ------------------------------------------------------------
   // PICK DOB
@@ -76,28 +88,42 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // ------------------------------------------------------------
   // SAVE PROFILE
   // ------------------------------------------------------------
-  void _saveProfile() async {
-    final name = _nameCtrl.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Name cannot be empty")),
-      );
-      return;
-    }
+void _saveProfile() async {
+  final name = _nameCtrl.text.trim();
+
+  if (name.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Name cannot be empty")),
+    );
+    return;
+  }
+
+  final user = UserModel(
+    fullName: name,
+    bloodGroup: "A+",
+    donations: 5,
+  );
+
+  await LocalUserService.updateUser(user);
+
+  // ✅ Send selected photo back to UserProfilePage
+  Navigator.pop(context, _photo);
+}
+
 
     // Save only minimal fields 
-    final user = UserModel(
-      fullName: name,
-      bloodGroup: "A+", // temporary default
-      donations: 5, // dummy
-    );
+  //   final user = UserModel(
+  //     fullName: name,
+  //     bloodGroup: "A+", // temporary default
+  //     donations: 5, // dummy
+  //   );
 
-    await LocalUserService.updateUser(user);
+  //   await LocalUserService.updateUser(user);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Profile Saved")),
-    );
-  }
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     const SnackBar(content: Text("Profile Saved")),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +220,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                   ],
                 ),
+                
               ),
+                const SizedBox(height: 20),
+
+
 
               const SizedBox(height: 20),
 

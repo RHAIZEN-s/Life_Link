@@ -84,16 +84,16 @@ class _MainNavigationState extends State<MainNavigation> {
     // SCREEN LIST BASED ON USER TYPE
     // ---------------------------------------------------------
     final List<Widget> screens = widget.isAdmin
-        ? const [
-            AdminHomePage(), // ADMIN HOME
-            SearchPage(),
-            RequestsPage(),
-            AdminProfilePage(), // ADMIN PROFILE
+        ?  [
+            const AdminHomePage(), // ADMIN HOME
+            const SearchPage(),
+            const RequestsPage(),
+            const AdminProfilePage(), // ADMIN PROFILE
           ]
-        : const [
-            UserHomePage(), // USER HOME
-            SearchPage(),
-            RequestsPage(),
+        :  [
+            const UserHomePage(), // USER HOME
+            const SearchPage(),
+            const RequestsPage(),
             UserProfilePage(), // USER PROFILE
           ];
 

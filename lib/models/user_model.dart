@@ -2,11 +2,14 @@ class UserModel {
   final String fullName;
   final String bloodGroup;
   final int donations;
+  final String? photoPath;
+
 
   UserModel({
     required this.fullName,
     required this.bloodGroup,
     required this.donations,
+    this.photoPath,
   });
 
   // Convert to map for SharedPreferences
@@ -15,6 +18,7 @@ class UserModel {
       "fullName": fullName,
       "bloodGroup": bloodGroup,
       "donations": donations,
+      'photoPath': photoPath,
     };
   }
 
@@ -24,6 +28,8 @@ class UserModel {
       fullName: map["fullName"] ?? "",
       bloodGroup: map["bloodGroup"] ?? "A+",
       donations: map["donations"] ?? 0,
+      photoPath: map['photoPath'],
+
     );
   }
 }

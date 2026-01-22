@@ -1,3 +1,7 @@
+import 'dart:io';
+import '../services/local_user_service.dart';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'edit_profile_page.dart';
 
@@ -9,6 +13,26 @@ class UserProfilePage extends StatefulWidget {
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
+ImageProvider? profilePhoto;
+
+@override
+void initState() {
+  super.initState();
+  _loadProfilePhoto();
+}
+
+Future<void> _loadProfilePhoto() async {
+  final base64 = await LocalUserService.getProfilePhotoBase64();
+  if (base64 != null) {
+    final bytes = base64Decode(base64);
+    setState(() {
+      profilePhoto = MemoryImage(bytes);
+    });
+  }
+}
+
+
+
   bool showPhone = false;
 
   @override
@@ -55,14 +79,25 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: const Text(
-                  'RK',
-                  style: TextStyle(
-                    color: Color(0xFFE63946),
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+child: profilePhoto == null
+    ? const Text(
+        'RK',
+        style: TextStyle(
+          color: Color(0xFFE63946),
+          fontSize: 28,
+          fontWeight: FontWeight.w800,
+        ),
+      )
+    : ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Image(
+          image: profilePhoto!,
+          fit: BoxFit.cover,
+          width: 72,
+          height: 72,
+        ),
+      ),
+
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -220,25 +255,33 @@ class _UserProfilePageState extends State<UserProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Medical Details',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-            GestureDetector(
-                         onTap: () {
-                        Navigator.push(
-                             context,
-                       MaterialPageRoute(
-                           builder: (_) => const EditProfilePage(),
-                     ),
-             );
-             },
-            child: _greyButton('Edit Profile'),
-              ),
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    const Text(
+      'Medical Details',
+      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+    ),
+    GestureDetector(
+      onTap: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const EditProfilePage(),
+          ),
+        );
 
-          ],
-        ),
+        if (result != null && result is ImageProvider) {
+          setState(() {
+            profilePhoto = result;
+          });
+        }
+      },
+      child: _greyButton('Edit Profile'),
+    ),
+  ],
+),
+
         const SizedBox(height: 12),
         Wrap(
           spacing: 12,

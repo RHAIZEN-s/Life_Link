@@ -1,7 +1,34 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
+import 'dart:convert';
+
 
 class LocalUserService {
+
+  
+  static Future<UserModel?> getUser() async {
+  final prefs = await SharedPreferences.getInstance();
+  final data = prefs.getString('user');
+
+  if (data == null) return null;
+
+  return UserModel.fromMap(jsonDecode(data));
+}
+// static String? _profilePhotoPath;
+static const String _profilePhotoKey = 'profile_photo_base64';
+
+static Future<void> saveProfilePhotoBase64(String base64) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_profilePhotoKey, base64);
+}
+
+static Future<String?> getProfilePhotoBase64() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString(_profilePhotoKey);
+}
+
+
+
   // ------------------------------------------------------------
   // SAVE USER LOCALLY AFTER LOGIN / INITIAL PROFILE
   // ------------------------------------------------------------

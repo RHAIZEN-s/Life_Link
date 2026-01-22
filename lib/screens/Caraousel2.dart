@@ -68,30 +68,30 @@ class Caraousel2 extends StatelessWidget {
 
                 const SizedBox(height: 82),
 
-                // NEXT BUTTON
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFC62C2C),
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/caraousel2');
-                    },
-                    child: const Text(
-                      "Next",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
+                // // NEXT BUTTON
+                // SizedBox(
+                //   width: double.infinity,
+                //   child: ElevatedButton(
+                //     style: ElevatedButton.styleFrom(
+                //       backgroundColor: const Color(0xFFC62C2C),
+                //       padding: const EdgeInsets.symmetric(vertical: 20),
+                //       shape: RoundedRectangleBorder(
+                //         borderRadius: BorderRadius.circular(10),
+                //       ),
+                //     ),
+                //     onPressed: () {
+                //       Navigator.pushNamed(context, '/caraousel2');
+                //     },
+                //     child: const Text(
+                //       "Next",
+                //       style: TextStyle(
+                //         fontSize: 14,
+                //         fontWeight: FontWeight.bold,
+                //         color: Colors.white,
+                //       ),
+                //     ),
+                //   ),
+                // ),
 
                 const SizedBox(height: 56),
               ],
