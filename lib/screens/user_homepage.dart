@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../services/local_user_service.dart';
 import '../models/user_model.dart';
+import 'requests_page.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -445,16 +446,35 @@ class _UserHomePageState extends State<UserHomePage> {
   }
 
   // ================= COMMON =================
-  Widget _sectionHeader(String title) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+Widget _sectionHeader(String title) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(
+        title,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+      GestureDetector(
+        onTap: () {
+          if (title == "Nearby Requests") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const RequestsPage(),
+              ),
+            );
+          }
+        },
+        child: const Text(
+          "See All →",
+          style: TextStyle(
+            color: Colors.red,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        const Text("See All →", style: TextStyle(color: Colors.red)),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
+
 }
