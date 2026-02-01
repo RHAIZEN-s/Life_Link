@@ -90,6 +90,19 @@ class _InitialProfilePageState extends State<InitialProfilePage> {
         donations: 0,
       );
       await LocalUserService.saveUser(user);
+
+      // Save email
+      await LocalUserService.saveEmail(_emailController.text.trim());
+
+      // Save all profile data from initial profile
+      await LocalUserService.saveProfileData(
+        address: _addressController.text.trim().isNotEmpty
+            ? _addressController.text.trim()
+            : null,
+        dob: _dob?.toIso8601String(),
+        gender: _gender,
+      );
+
       Navigator.pushReplacementNamed(context, '/mainnav');
     } else {
       String msg = 'Profile save failed';

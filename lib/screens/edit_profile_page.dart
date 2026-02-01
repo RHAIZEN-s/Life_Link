@@ -5,7 +5,6 @@ import '../services/local_user_service.dart';
 import '../models/user_model.dart';
 import 'dart:convert';
 
-
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({Key? key}) : super(key: key);
 
@@ -40,31 +39,91 @@ class _EditProfilePageState extends State<EditProfilePage> {
     "Sickle Cell Anemia",
     "Cystic Fibrosis",
     "Hemophilia",
-    "Other"
+    "Other",
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  // ------------------------------------------------------------
+  // LOAD USER DATA
+  // ------------------------------------------------------------
+  Future<void> _loadUserData() async {
+    // Load basic user info
+    final user = await LocalUserService.getUser();
+    if (user != null) {
+      _nameCtrl.text = user.fullName;
+    }
+
+    // Load email
+    final email = await LocalUserService.getEmail();
+    if (email != null) {
+      _emailCtrl.text = email;
+    }
+
+    // Load profile photo
+    final photoBase64 = await LocalUserService.getProfilePhotoBase64();
+    if (photoBase64 != null) {
+      final bytes = base64Decode(photoBase64);
+      setState(() {
+        _photo = MemoryImage(bytes);
+      });
+    }
+
+    // Load all other profile data
+    final profileData = await LocalUserService.getProfileData();
+
+    setState(() {
+      if (profileData['address'] != null) {
+        _addressCtrl.text = profileData['address'];
+      }
+      if (profileData['dob'] != null) {
+        _dob = DateTime.parse(profileData['dob']);
+      }
+      _gender = profileData['gender'];
+      if (profileData['disease'] != null) {
+        _diseaseCtrl.text = profileData['disease'];
+      }
+      _geneticDisorder = profileData['geneticDisorder'];
+      if (profileData['geneticOther'] != null) {
+        _geneticOtherCtrl.text = profileData['geneticOther'];
+      }
+      _surgeries = profileData['surgeries'];
+      if (profileData['allergies'] != null) {
+        _allergyCtrl.text = profileData['allergies'];
+      }
+      if (profileData['medications'] != null) {
+        _medicationCtrl.text = profileData['medications'];
+      }
+      _availableToDonate = profileData['availableToDonate'] ?? false;
+      _receiveNotifications = profileData['receiveNotifications'] ?? true;
+    });
+  }
 
   // ------------------------------------------------------------
   // PICK PHOTO
   // ------------------------------------------------------------
-Future<void> pickPhoto() async {
-  final result = await FilePicker.platform.pickFiles(
-    type: FileType.image,
-    withData: true, // 🔥 REQUIRED FOR WEB
-  );
+  Future<void> pickPhoto() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true, // 🔥 REQUIRED FOR WEB
+    );
 
-  if (result != null && result.files.single.bytes != null) {
-    final bytes = result.files.single.bytes!;
-    final base64Image = base64Encode(bytes);
+    if (result != null && result.files.single.bytes != null) {
+      final bytes = result.files.single.bytes!;
+      final base64Image = base64Encode(bytes);
 
-    setState(() {
-      _photo = MemoryImage(bytes);
-    });
+      setState(() {
+        _photo = MemoryImage(bytes);
+      });
 
-    // ✅ SAVE IMAGE FOR ALL PLATFORMS
-    await LocalUserService.saveProfilePhotoBase64(base64Image);
+      // ✅ SAVE IMAGE FOR ALL PLATFORMS
+      await LocalUserService.saveProfilePhotoBase64(base64Image);
+    }
   }
-}
-
 
   // ------------------------------------------------------------
   // PICK DOB
@@ -88,30 +147,62 @@ Future<void> pickPhoto() async {
   // ------------------------------------------------------------
   // SAVE PROFILE
   // ------------------------------------------------------------
-void _saveProfile() async {
-  final name = _nameCtrl.text.trim();
+  void _saveProfile() async {
+    final name = _nameCtrl.text.trim();
 
-  if (name.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Name cannot be empty")),
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Name cannot be empty")));
+      return;
+    }
+
+    // Save basic user info
+    final user = UserModel(fullName: name, bloodGroup: "A+", donations: 5);
+
+    await LocalUserService.updateUser(user);
+
+    // Save email
+    final email = _emailCtrl.text.trim();
+    if (email.isNotEmpty) {
+      await LocalUserService.saveEmail(email);
+    }
+
+    // Save all profile data
+    await LocalUserService.saveProfileData(
+      address: _addressCtrl.text.trim().isNotEmpty
+          ? _addressCtrl.text.trim()
+          : null,
+      dob: _dob?.toIso8601String(),
+      gender: _gender,
+      disease: _diseaseCtrl.text.trim().isNotEmpty
+          ? _diseaseCtrl.text.trim()
+          : null,
+      geneticDisorder: _geneticDisorder,
+      geneticOther: _geneticOtherCtrl.text.trim().isNotEmpty
+          ? _geneticOtherCtrl.text.trim()
+          : null,
+      surgeries: _surgeries,
+      allergies: _allergyCtrl.text.trim().isNotEmpty
+          ? _allergyCtrl.text.trim()
+          : null,
+      medications: _medicationCtrl.text.trim().isNotEmpty
+          ? _medicationCtrl.text.trim()
+          : null,
+      availableToDonate: _availableToDonate,
+      receiveNotifications: _receiveNotifications,
     );
-    return;
+
+    // Show success message
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Profile Saved Successfully")));
+
+    // ✅ Send selected photo back to UserProfilePage
+    Navigator.pop(context, _photo);
   }
 
-  final user = UserModel(
-    fullName: name,
-    bloodGroup: "A+",
-    donations: 5,
-  );
-
-  await LocalUserService.updateUser(user);
-
-  // ✅ Send selected photo back to UserProfilePage
-  Navigator.pop(context, _photo);
-}
-
-
-    // Save only minimal fields 
+  // Save only minimal fields
   //   final user = UserModel(
   //     fullName: name,
   //     bloodGroup: "A+", // temporary default
@@ -152,15 +243,16 @@ void _saveProfile() async {
                     Text(
                       "Edit Profile",
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800),
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     SizedBox(height: 6),
                     Text(
                       "Update your details to stay verified & match-ready",
                       style: TextStyle(color: Colors.white70, fontSize: 13),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -171,16 +263,18 @@ void _saveProfile() async {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18)),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
                 child: Column(
                   children: [
                     const Text(
                       "Profile Photo",
                       style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1D3557)),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1D3557),
+                      ),
                     ),
                     const SizedBox(height: 14),
 
@@ -211,20 +305,14 @@ void _saveProfile() async {
                               )
                             : ClipRRect(
                                 borderRadius: BorderRadius.circular(17),
-                                child: Image(
-                                  image: _photo!,
-                                  fit: BoxFit.cover,
-                                ),
+                                child: Image(image: _photo!, fit: BoxFit.cover),
                               ),
                       ),
                     ),
                   ],
                 ),
-                
               ),
-                const SizedBox(height: 20),
-
-
+              const SizedBox(height: 20),
 
               const SizedBox(height: 20),
 
@@ -243,8 +331,7 @@ void _saveProfile() async {
                     child: InputDecorator(
                       decoration: inputDecoration(),
                       child: Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(dobText),
                           const Icon(Icons.calendar_today, size: 18),
@@ -260,10 +347,7 @@ void _saveProfile() async {
                     value: _gender,
                     decoration: inputDecoration(),
                     items: genderList
-                        .map((e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(e),
-                            ))
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
                     onChanged: (v) => setState(() => _gender = v),
                   ),
@@ -276,8 +360,11 @@ void _saveProfile() async {
                   const SizedBox(height: 12),
 
                   buildInputLabel("Email"),
-                  buildTextField(_emailCtrl, "Enter email",
-                      keyboard: TextInputType.emailAddress),
+                  buildTextField(
+                    _emailCtrl,
+                    "Enter email",
+                    keyboard: TextInputType.emailAddress,
+                  ),
                 ],
               ),
 
@@ -297,10 +384,7 @@ void _saveProfile() async {
                     value: _geneticDisorder,
                     decoration: inputDecoration(),
                     items: geneticList
-                        .map((e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(e),
-                            ))
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
                     onChanged: (v) => setState(() {
                       _geneticDisorder = v;
@@ -310,8 +394,7 @@ void _saveProfile() async {
                   if (_geneticDisorder == "Other")
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
-                      child: buildTextField(
-                          _geneticOtherCtrl, "Specify other"),
+                      child: buildTextField(_geneticOtherCtrl, "Specify other"),
                     ),
 
                   const SizedBox(height: 12),
@@ -321,10 +404,7 @@ void _saveProfile() async {
                     value: _surgeries,
                     decoration: inputDecoration(),
                     items: ["Yes", "No"]
-                        .map((e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(e),
-                            ))
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
                     onChanged: (v) => setState(() => _surgeries = v),
                   ),
@@ -347,12 +427,12 @@ void _saveProfile() async {
               buildSection(
                 title: "Preferences",
                 children: [
-                  buildToggle("Available to Donate",
-                      _availableToDonate, (v) {
+                  buildToggle("Available to Donate", _availableToDonate, (v) {
                     setState(() => _availableToDonate = v);
                   }),
-                  buildToggle("Receive Notifications",
-                      _receiveNotifications, (v) {
+                  buildToggle("Receive Notifications", _receiveNotifications, (
+                    v,
+                  ) {
                     setState(() => _receiveNotifications = v);
                   }),
                 ],
@@ -374,9 +454,10 @@ void _saveProfile() async {
                 child: const Text(
                   "Save Changes",
                   style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
@@ -390,22 +471,24 @@ void _saveProfile() async {
   // UI HELPERS
   // ---------------------------------------------------------------------------
 
-  Widget buildSection({
-    required String title,
-    required List<Widget> children,
-  }) {
+  Widget buildSection({required String title, required List<Widget> children}) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(18)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1D3557))),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1D3557),
+            ),
+          ),
           const SizedBox(height: 12),
           ...children,
         ],
@@ -414,15 +497,21 @@ void _saveProfile() async {
   }
 
   Widget buildInputLabel(String text) {
-    return Text(text,
-        style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1D3557)));
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF1D3557),
+      ),
+    );
   }
 
-  Widget buildTextField(TextEditingController controller, String hint,
-      {TextInputType keyboard = TextInputType.text}) {
+  Widget buildTextField(
+    TextEditingController controller,
+    String hint, {
+    TextInputType keyboard = TextInputType.text,
+  }) {
     return TextField(
       controller: controller,
       keyboardType: keyboard,
@@ -432,8 +521,7 @@ void _saveProfile() async {
 
   Widget buildToggle(String label, bool value, Function(bool) onChanged) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
@@ -443,11 +531,14 @@ void _saveProfile() async {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1D3557))),
-          Switch(value: value, onChanged: (v) => onChanged(v))
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1D3557),
+            ),
+          ),
+          Switch(value: value, onChanged: (v) => onChanged(v)),
         ],
       ),
     );
@@ -458,8 +549,7 @@ void _saveProfile() async {
       hintText: hint,
       filled: true,
       fillColor: const Color(0xFFF8F9FA),
-      contentPadding:
-          const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFDDE3EA)),

@@ -19,6 +19,7 @@ class SignUpState extends State<SignUp> {
   final TextEditingController otpController = TextEditingController();
 
   bool _showOtp = false;
+bool _isPasswordVisible = false;
 
   late String userRole;
 
@@ -155,7 +156,14 @@ class SignUpState extends State<SignUp> {
                 emailController,
                 keyboardType: TextInputType.emailAddress,
               ),
-              _boxField("Password", passwordController, obscureText: true),
+              _boxField(
+  "Password",
+  passwordController,
+  obscureText: true,
+  isPassword: true,
+),
+
+
 
               if (_showOtp) ...[
                 _boxField(
@@ -227,32 +235,48 @@ class SignUpState extends State<SignUp> {
   // ------------------------------------------------------------
   // INPUT FIELD UI (UNCHANGED)
   // ------------------------------------------------------------
-  Widget _boxField(
-    String hint,
-    TextEditingController controller, {
-    TextInputType? keyboardType,
-    bool obscureText = false,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black, width: 1),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        decoration: InputDecoration(
-          hintText: hint,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 20,
-            horizontal: 10,
-          ),
+Widget _boxField(
+  String hint,
+  TextEditingController controller, {
+  TextInputType? keyboardType,
+  bool obscureText = false,
+  bool isPassword = false,
+}) {
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+    decoration: BoxDecoration(
+      border: Border.all(color: Colors.black, width: 1),
+    ),
+    child: TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: isPassword ? !_isPasswordVisible : obscureText,
+      decoration: InputDecoration(
+        hintText: hint,
+        border: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 20,
+          horizontal: 10,
         ),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  _isPasswordVisible
+                      ? Icons.visibility
+                      : Icons.visibility_off,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isPasswordVisible = !_isPasswordVisible;
+                  });
+                },
+              )
+            : null,
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   @override
   void dispose() {

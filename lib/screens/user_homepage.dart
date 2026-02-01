@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../services/local_user_service.dart';
 import '../models/user_model.dart';
 import 'requests_page.dart';
+import 'history_page.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -20,6 +21,8 @@ class _UserHomePageState extends State<UserHomePage> {
   int donations = 0;
   int points = 0;
   String userEmail = "";
+List<Map<String, dynamic>> acceptedRequests = [];
+List<Map<String, dynamic>> rejectedRequests = [];
 
   List<Map<String, dynamic>> nearbyRequests = [];
   List<Map<String, dynamic>> upcomingCamps = [];
@@ -130,23 +133,39 @@ class _UserHomePageState extends State<UserHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "🩸 LifeLink",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              CircleAvatar(
-                backgroundColor: Colors.white24,
-                child: Icon(Icons.notifications, color: Colors.white),
-              ),
-            ],
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    const Text(
+      "🩸 LifeLink",
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+
+    GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HistoryPage(
+  accepted: acceptedRequests,
+  rejected: rejectedRequests,
+),
+
           ),
+        );
+      },
+      child: const CircleAvatar(
+        backgroundColor: Colors.white24,
+        child: Icon(Icons.notifications, color: Colors.white),
+      ),
+    ),
+  ],
+),
+
           const SizedBox(height: 20),
           const Text("Welcome back,", style: TextStyle(color: Colors.white70)),
           Text(
@@ -366,19 +385,40 @@ class _UserHomePageState extends State<UserHomePage> {
             ],
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () {},
-              child: const Text("Respond to Request"),
-            ),
-          ),
+SizedBox(
+  width: double.infinity,
+  child: ElevatedButton(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: urgent
+          ? const Color(0xFFE63946) // red
+          : const Color(0xFF2EC4B6), // green
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+    ),
+    onPressed: () {
+  _showRequestDialog(
+    bloodType: bloodType,
+    hospital: hospital,
+    location: location,
+    distance: distance,
+    time: time,
+    units: units,
+    urgent: urgent,
+  );
+},
+
+    child: const Text(
+      "Respond to Request",
+      style: TextStyle(
+        color: Colors.white, // ✅ FORCE TEXT COLOR
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  ),
+),
+
+
         ],
       ),
     );
@@ -474,6 +514,84 @@ Widget _sectionHeader(String title) {
         ),
       ),
     ],
+  );
+}
+void _showRequestDialog({
+  required String bloodType,
+  required String hospital,
+  required String location,
+  required String distance,
+  required String time,
+  required String units,
+  required bool urgent,
+}) {
+  showDialog(
+    context: context,
+    builder: (_) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Request Details"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("🩸 Blood Type: $bloodType"),
+            Text("🏥 Hospital: $hospital"),
+            Text("📍 Location: $location"),
+            Text("📏 Distance: $distance"),
+            Text("⏱ Time: $time"),
+            Text("👥 Units: $units"),
+            if (urgent)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  "URGENT",
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                ),
+              ),
+          ],
+        ),
+actions: [
+  TextButton(
+    onPressed: () {
+      setState(() {
+        rejectedRequests.add({
+          "bloodType": bloodType,
+          "hospital": hospital,
+          "location": location,
+          "units": units,
+          "time": time,
+        });
+      });
+      Navigator.pop(context);
+    },
+    child: const Text(
+      "Reject",
+      style: TextStyle(color: Colors.white),
+    ),
+  ),
+  ElevatedButton(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFFE63946),
+    ),
+    onPressed: () {
+      setState(() {
+        acceptedRequests.add({
+          "bloodType": bloodType,
+          "hospital": hospital,
+          "location": location,
+          "units": units,
+          "time": time,
+        });
+      });
+      Navigator.pop(context);
+    },
+    child: const Text("Accept"),
+  ),
+],
+
+      );
+    },
   );
 }
 

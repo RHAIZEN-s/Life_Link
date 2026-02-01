@@ -17,6 +17,7 @@ class LogInState extends State<LogIn> {
   final TextEditingController passwordController = TextEditingController();
 
   late String userRole;
+  bool _isPasswordVisible = false;
 
   @override
   void didChangeDependencies() {
@@ -118,6 +119,7 @@ class LogInState extends State<LogIn> {
                 "Password",
                 TextInputType.text,
                 obscureText: true,
+                isPassword: true,
               ),
 
               const SizedBox(height: 20),
@@ -199,6 +201,7 @@ class LogInState extends State<LogIn> {
     String hint,
     TextInputType type, {
     bool obscureText = false,
+    bool isPassword = false,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
@@ -208,7 +211,7 @@ class LogInState extends State<LogIn> {
       child: TextField(
         controller: ctrl,
         keyboardType: type,
-        obscureText: obscureText,
+        obscureText: isPassword ? !_isPasswordVisible : obscureText,
         decoration: InputDecoration(
           hintText: hint,
           border: InputBorder.none,
@@ -216,6 +219,20 @@ class LogInState extends State<LogIn> {
             vertical: 20,
             horizontal: 10,
           ),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _isPasswordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isPasswordVisible = !_isPasswordVisible;
+                    });
+                  },
+                )
+              : null,
         ),
       ),
     );
