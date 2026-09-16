@@ -1,4 +1,3 @@
-import 'dart:io';
 import '../services/local_user_service.dart';
 import 'dart:convert';
 
@@ -13,27 +12,55 @@ class UserProfilePage extends StatefulWidget {
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
-ImageProvider? profilePhoto;
+  ImageProvider? profilePhoto;
 
-@override
-void initState() {
-  super.initState();
-  _loadProfilePhoto();
-}
-
-Future<void> _loadProfilePhoto() async {
-  final base64 = await LocalUserService.getProfilePhotoBase64();
-  if (base64 != null) {
-    final bytes = base64Decode(base64);
-    setState(() {
-      profilePhoto = MemoryImage(bytes);
-    });
-  }
-}
-
-
+  // Real, persisted profile fields (replace the old hardcoded strings).
+  String fullName = 'Your Name';
+  String bloodGroup = 'A+';
+  int donations = 0;
+  String? address;
+  String? email;
 
   bool showPhone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+
+  Future<void> _loadProfile() async {
+    final user = await LocalUserService.getUser();
+    final profileData = await LocalUserService.getProfileData();
+    final base64 = await LocalUserService.getProfilePhotoBase64();
+    final savedEmail = await LocalUserService.getEmail();
+
+    if (!mounted) return;
+
+    setState(() {
+      if (user != null) {
+        fullName = user.fullName;
+        bloodGroup = user.bloodGroup;
+        donations = user.donations;
+      }
+      address = profileData['address'];
+      email = savedEmail;
+      if (base64 != null) {
+        profilePhoto = MemoryImage(base64Decode(base64));
+      }
+    });
+  }
+
+  String get _initials {
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '';
+    final first = parts.first[0];
+    final last = parts.length > 1 && parts.last.isNotEmpty
+        ? parts.last[0]
+        : '';
+    return (first + last).toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,43 +106,42 @@ Future<void> _loadProfilePhoto() async {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
                 ),
-child: profilePhoto == null
-    ? const Text(
-        'RK',
-        style: TextStyle(
-          color: Color(0xFFE63946),
-          fontSize: 28,
-          fontWeight: FontWeight.w800,
-        ),
-      )
-    : ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Image(
-          image: profilePhoto!,
-          fit: BoxFit.cover,
-          width: 72,
-          height: 72,
-        ),
-      ),
-
+                child: profilePhoto == null
+                    ? Text(
+                        _initials,
+                        style: const TextStyle(
+                          color: Color(0xFFE63946),
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      )
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image(
+                          image: profilePhoto!,
+                          fit: BoxFit.cover,
+                          width: 72,
+                          height: 72,
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
-                      'Rahul Kumar • 32',
-                      style: TextStyle(
+                      fullName,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Pune, Maharashtra',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      address ?? 'Location not set',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                   ],
                 ),
@@ -221,7 +247,7 @@ child: profilePhoto == null
         const SizedBox(height: 12),
         Row(
           children: [
-            _statCard('5', 'Donations'),
+            _statCard('$donations', 'Donations'),
             const SizedBox(width: 12),
             _statCard('850', 'Points'),
           ],
@@ -255,39 +281,35 @@ child: profilePhoto == null
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    const Text(
-      'Medical Details',
-      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-    ),
-    GestureDetector(
-      onTap: () async {
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const EditProfilePage(),
-          ),
-        );
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Medical Details',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+            GestureDetector(
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const EditProfilePage(),
+                  ),
+                );
 
-        if (result != null && result is ImageProvider) {
-          setState(() {
-            profilePhoto = result;
-          });
-        }
-      },
-      child: _greyButton('Edit Profile'),
-    ),
-  ],
-),
 
+                await _loadProfile();
+              },
+              child: _greyButton('Edit Profile'),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 12,
           runSpacing: 12,
           children: [
-            _infoCard('Blood Group', 'A+'),
+            _infoCard('Blood Group', bloodGroup),
             _infoCard('Last Donation', '2025-08-08'),
             _infoCard('Next Eligible', '2025-12-20'),
             _infoCard('Associated Hospital', 'City Hospital'),
@@ -331,9 +353,10 @@ Row(
           children: [
             Expanded(
               child: Text(
-                showPhone ? '+91 98765 3210' : '+91 ••••• 3210',
-                style:
-                    const TextStyle(fontSize: 16, letterSpacing: 2),
+                showPhone
+                    ? (email ?? 'No email set')
+                    : (email != null ? '•••••@•••••' : 'No email set'),
+                style: const TextStyle(fontSize: 16, letterSpacing: 1),
               ),
             ),
             ElevatedButton(

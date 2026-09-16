@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/local_user_service.dart';
@@ -33,6 +32,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   ImageProvider? _photo;
 
+  String _bloodGroup = "A+";
+  int _donations = 0;
+
   List<String> genderList = ["Male", "Female", "Other"];
   List<String> geneticList = [
     "Thalassemia",
@@ -56,6 +58,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final user = await LocalUserService.getUser();
     if (user != null) {
       _nameCtrl.text = user.fullName;
+      _bloodGroup = user.bloodGroup;
+      _donations = user.donations;
     }
 
     // Load email
@@ -109,7 +113,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> pickPhoto() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.image,
-      withData: true, // 🔥 REQUIRED FOR WEB
+      withData: true, // required for web
     );
 
     if (result != null && result.files.single.bytes != null) {
@@ -120,7 +124,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _photo = MemoryImage(bytes);
       });
 
-      // ✅ SAVE IMAGE FOR ALL PLATFORMS
       await LocalUserService.saveProfilePhotoBase64(base64Image);
     }
   }
@@ -132,7 +135,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(now.year - 25),
+      initialDate: _dob ?? DateTime(now.year - 25),
       firstDate: DateTime(1900),
       lastDate: now,
     );
@@ -157,8 +160,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
 
-    // Save basic user info
-    final user = UserModel(fullName: name, bloodGroup: "A+", donations: 5);
+
+    final user = UserModel(
+      fullName: name,
+      bloodGroup: _bloodGroup,
+      donations: _donations,
+    );
 
     await LocalUserService.updateUser(user);
 
@@ -193,28 +200,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
       receiveNotifications: _receiveNotifications,
     );
 
+    if (!mounted) return;
+
     // Show success message
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Profile Saved Successfully")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Profile Saved Successfully")),
+    );
 
-    // ✅ Send selected photo back to UserProfilePage
-    Navigator.pop(context, _photo);
+  
+    Navigator.pop(context);
   }
-
-  // Save only minimal fields
-  //   final user = UserModel(
-  //     fullName: name,
-  //     bloodGroup: "A+", // temporary default
-  //     donations: 5, // dummy
-  //   );
-
-  //   await LocalUserService.updateUser(user);
-
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     const SnackBar(content: Text("Profile Saved")),
-  //   );
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -312,8 +307,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-
               const SizedBox(height: 20),
 
               // BASIC INFO
