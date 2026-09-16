@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
@@ -121,6 +124,79 @@ class LocalUserService {
       'availableToDonate': prefs.getBool('availableToDonate') ?? false,
       'receiveNotifications': prefs.getBool('receiveNotifications') ?? true,
     };
+  }
+
+  // ------------------------------------------------------------
+  // DONATION HISTORY
+  // Records: {'id', 'hospital', 'type', 'date', 'bloodGroup', 'units'}
+  // ------------------------------------------------------------
+  static const String _donationHistoryKey = 'donation_history';
+
+  static Future<List<Map<String, dynamic>>> getDonationHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_donationHistoryKey);
+    if (raw == null) return [];
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> saveDonationHistory(
+      List<Map<String, dynamic>> records) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_donationHistoryKey, jsonEncode(records));
+  }
+
+  static Future<void> addDonationRecord(Map<String, dynamic> record) async {
+    final records = await getDonationHistory();
+    records.insert(0, record);
+    await saveDonationHistory(records);
+  }
+
+  // ------------------------------------------------------------
+  // DOCUMENTS
+  // Records: {'id', 'name', 'filePath', 'status'}
+  // status: 'pending' | 'correct' | 'incorrect'
+  // ------------------------------------------------------------
+  static const String _documentsKey = 'documents';
+
+  static Future<List<Map<String, dynamic>>> getDocuments() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_documentsKey);
+    if (raw == null) return [];
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> saveDocuments(List<Map<String, dynamic>> docs) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_documentsKey, jsonEncode(docs));
+  }
+
+  static Future<void> setDocumentStatus(
+      String documentId, String status) async {
+    final docs = await getDocuments();
+    final index = docs.indexWhere((d) => d['id']?.toString() == documentId);
+    if (index == -1) return;
+    docs[index] = {...docs[index], 'status': status};
+    await saveDocuments(docs);
+  }
+
+  // ------------------------------------------------------------
+  // CERTIFICATES
+  // ------------------------------------------------------------
+  static Future<Uint8List?> getCertificateBytes(String donationId) async {
+    // TODO: no certificate storage exists yet. Wire this up once
+    // certificates are generated or downloaded — return the PDF or
+    // image bytes for this donation, or null if there isn't one.
+    return null;
   }
 
   // ------------------------------------------------------------
