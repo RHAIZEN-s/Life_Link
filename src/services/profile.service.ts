@@ -1,25 +1,18 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseService } from '../modules/supabase/supabase.service';
 import { InitialProfileDto } from '../modules/profile/dto/initial-profile.dto';
-import { GetProfileDto } from '../modules/profile/dto/get-profile.dto';
+import type { AuthUser } from '../modules/auth/jwt-auth.guard';
 
 @Injectable()
 export class ProfileService {
   constructor(private readonly supabase: SupabaseService) {}
 
-  async upsertInitialProfile(dto: InitialProfileDto) {
-    const { email, fullName, dob, gender, bloodGroup, phone, address } = dto;
-
-    const { data: user, error: userError } = await this.supabase.supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .limit(1)
-      .single();
-
-    if (userError || !user) {
-      throw new BadRequestException('User not found for this email');
-    }
+  async upsertInitialProfile(user: AuthUser, dto: InitialProfileDto) {
+    const { fullName, dob, gender, bloodGroup, phone, address } = dto;
 
     const payload = {
       user_id: user.id,
@@ -28,7 +21,7 @@ export class ProfileService {
       gender,
       blood_group: bloodGroup,
       phone,
-      email,
+      email: user.email,
       address,
     };
 
@@ -45,29 +38,14 @@ export class ProfileService {
     return { ok: true, profile: data };
   }
 
-  async getInitialProfile(email: string) {
-    const { data: user, error: userError } = await this.supabase.supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .limit(1)
-      .single();
-
-    if (userError || !user) {
-      throw new NotFoundException('User not found for this email');
-    }
-
+  async getInitialProfile(userId: string) {
     const { data, error } = await this.supabase.supabase
       .from('initial_profile_data')
       .select('*')
-      .eq('user_id', user.id)
-      .limit(1)
-      .single();
+      .eq('user_id', userId)
+      .maybeSingle();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        throw new NotFoundException('Profile not found');
-      }
       throw new BadRequestException(error.message);
     }
 

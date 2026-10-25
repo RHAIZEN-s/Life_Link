@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import * as Joi from 'joi';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { SupabaseModule } from './modules/supabase/supabase.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProfileModule } from './modules/profile/profile.module';
@@ -15,10 +14,11 @@ import { SearchModule } from './modules/search/search.module';
       isGlobal: true,
       envFilePath: '.env',
       validationSchema: Joi.object({
-        SUPABASE_URL: Joi.string().required(),
+        SUPABASE_URL: Joi.string().uri().required(),
         SUPABASE_SERVICE_ROLE_KEY: Joi.string().required(),
-        SUPABASE_ANON_KEY: Joi.string().required(),
-        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+        NODE_ENV: Joi.string()
+          .valid('development', 'production', 'test')
+          .default('development'),
         PORT: Joi.number().default(3000),
         BACKEND_URL: Joi.string().optional(),
         SMTP_HOST: Joi.string().optional(),
@@ -26,7 +26,8 @@ import { SearchModule } from './modules/search/search.module';
         SMTP_USER: Joi.string().optional(),
         SMTP_PASS: Joi.string().optional(),
         SMTP_FROM: Joi.string().optional(),
-        JWT_SECRET: Joi.string().required(),
+        JWT_SECRET: Joi.string().min(32).required(),
+        AUTH_RATE_LIMIT_MAX: Joi.number().optional(),
       }),
     }),
     SupabaseModule,
@@ -36,6 +37,5 @@ import { SearchModule } from './modules/search/search.module';
     SearchModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}
