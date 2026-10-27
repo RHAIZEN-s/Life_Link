@@ -1,36 +1,34 @@
 # Life Link Backend
 
-NestJS 11 API for the Life Link blood and organ donation app, backed by Supabase (Postgres).
+NestJS 11 API for the Life Link blood & organ donation app. Data lives in Supabase
+(Postgres + Storage); the API is the only thing allowed to touch it.
 
-## Setup
+## Quick start
 
 ```bash
 npm install
-cp .env.example .env   # then fill in the values
+cp .env.example .env          # fill in Supabase keys and a JWT_SECRET (32+ chars)
 npm run start:dev
 ```
 
-The app refuses to start until `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` (32+ chars) are set.
-Without SMTP settings in development, registration OTPs are printed to the server log.
+1. **Database:** run [`supabase/migrations/20261025000001_lifelink_core_schema.sql`](supabase/migrations/20261025000001_lifelink_core_schema.sql)
+   once in the Supabase SQL Editor (or `supabase db push`). It is idempotent and keeps
+   existing data (old ad-hoc tables are renamed to `legacy_*`).
+2. **Admins:** follow [`supabase/seed_admin.example.sql`](supabase/seed_admin.example.sql)
+   to create the first super admin, then register hospitals through the API.
+3. **API docs:** <http://localhost:3000/api/docs> (Swagger). Log in with
+   `POST /api/v1/auth/login`, click **Authorize**, paste the `accessToken`.
 
-## API documentation
-
-Open [http://localhost:3000/api/docs](http://localhost:3000/api/docs) (Swagger UI) once the server is running.
-The raw OpenAPI JSON is at `/api/docs-json`.
-
-Protected endpoints (`/profile`, `/home`, `/search`) need a JWT:
-
-1. `POST /auth/register` → `POST /auth/verify` with the emailed OTP → `POST /auth/login`.
-2. Copy `access_token` from the login response.
-3. Click **Authorize** in Swagger UI and paste the token (no `Bearer ` prefix).
-
-See [DOCS.md](DOCS.md) for endpoint details and the expected database tables.
+Without SMTP settings in development, one-time codes are printed to the server log.
 
 ## Scripts
 
-```bash
-npm run start:dev    # watch mode
-npm run build        # compile to dist/
-npm run start:prod   # run compiled build
-npm run test:e2e     # e2e tests (need a valid .env)
-```
+| Command | What it does |
+|---|---|
+| `npm run start:dev` | Run with reload |
+| `npm run build` / `npm run start:prod` | Compile to `dist/` / run the build |
+| `npm test` | Unit tests |
+| `npm run test:e2e` | HTTP tests against the real module graph (needs `.env`; no DB writes) |
+| `npm run lint` / `npm run format` | ESLint (type-aware) / Prettier |
+
+See [DOCS.md](DOCS.md) for architecture, security model, data model and endpoints.

@@ -1,75 +1,121 @@
-import { Controller, Post, Body } from '@nestjs/common';
-import { AuthService } from '../../services/auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { VerifyDto } from './dto/verify.dto';
-import { ResendOtpDto } from './dto/resend-otp.dto';
+import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
 import {
-  ApiBadRequestResponse,
-  ApiCreatedResponse,
-  ApiTags,
+  ApiBearerAuth,
+  ApiConflictResponse,
+  ApiOkResponse,
   ApiOperation,
+  ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { AuthService } from './auth.service';
+import { CurrentUser, Public } from './decorators';
+import type { AuthUser } from './auth.types';
+import {
+  EmailDto,
+  LoginDto,
+  RefreshTokenDto,
+  RegisterDto,
+  ResetPasswordDto,
+  VerifyEmailDto,
+} from './dto/auth.dto';
+
+const SESSION_EXAMPLE = {
+  accessToken: 'eyJhbGciOiJIUzI1NiIs...',
+  refreshToken: 'k3J9...',
+  expiresIn: 900,
+  user: {
+    id: 'uuid',
+    email: 'alice@example.com',
+    name: 'Alice Example',
+    role: 'user',
+    hospitalId: null,
+    profileCompleted: false,
+  },
+};
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  @ApiOperation({
-    summary: 'Register a user and send an email verification code',
-  })
-  @ApiCreatedResponse({
-    description: 'User registered.',
-    schema: { example: { ok: true } },
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid input or email already registered.',
-  })
+  @Public()
   @Post('register')
-  async register(@Body() dto: RegisterDto) {
+  @ApiOperation({ summary: 'Create an account and email a verification code' })
+  @ApiConflictResponse({ description: 'Email already registered.' })
+  @ApiTooManyRequestsResponse({ description: 'Code requested too recently.' })
+  register(@Body() dto: RegisterDto) {
     return this.auth.register(dto.name, dto.email, dto.password);
   }
 
-  // API-only OTP verification (no server-rendered page)
-  @ApiOperation({ summary: 'Verify a user account with the emailed OTP' })
-  @ApiCreatedResponse({
-    description: 'Email verified.',
-    schema: { example: { ok: true } },
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid email or OTP, or the OTP has expired.',
-  })
-  @Post('verify')
-  async verify(@Body() dto: VerifyDto) {
-    return this.auth.verify(dto.email, dto.otp);
+  @Public()
+  @Post('verify-email')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Verify the emailed code; returns a session' })
+  @ApiOkResponse({ schema: { example: SESSION_EXAMPLE } })
+  verifyEmail(@Body() dto: VerifyEmailDto, @Headers('user-agent') ua?: string) {
+    return this.auth.verifyEmail(dto.email, dto.otp, ua);
   }
 
-  @ApiOperation({
-    summary: 'Send a new verification code to an unverified account',
-  })
-  @ApiCreatedResponse({
-    description: 'Code sent if the account exists and is unverified.',
-    schema: { example: { ok: true } },
-  })
-  @Post('resend-otp')
-  async resendOtp(@Body() dto: ResendOtpDto) {
-    return this.auth.resendOtp(dto.email);
+  @Public()
+  @Post('resend-verification')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Email a new verification code' })
+  resendVerification(@Body() dto: EmailDto) {
+    return this.auth.resendVerification(dto.email);
   }
 
-  @ApiOperation({ summary: 'Log in with email and password' })
-  @ApiCreatedResponse({
-    description: 'Login successful.',
-    schema: {
-      example: { access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
-    },
-  })
-  @ApiUnauthorizedResponse({
-    description: 'Invalid credentials or email not verified.',
-  })
+  @Public()
   @Post('login')
-  async login(@Body() dto: LoginDto) {
-    return this.auth.login(dto.email, dto.password);
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Log in with email and password' })
+  @ApiOkResponse({ schema: { example: SESSION_EXAMPLE } })
+  @ApiUnauthorizedResponse({ description: 'Invalid email or password.' })
+  login(@Body() dto: LoginDto, @Headers('user-agent') ua?: string) {
+    return this.auth.login(dto.email, dto.password, ua);
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Exchange a refresh token for a new session (rotates the token)',
+  })
+  @ApiOkResponse({ schema: { example: SESSION_EXAMPLE } })
+  refresh(@Body() dto: RefreshTokenDto, @Headers('user-agent') ua?: string) {
+    return this.auth.refresh(dto.refreshToken, ua);
+  }
+
+  @Public()
+  @Post('logout')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Revoke a refresh token' })
+  logout(@Body() dto: RefreshTokenDto) {
+    return this.auth.logout(dto.refreshToken);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Email a password reset code' })
+  forgotPassword(@Body() dto: EmailDto) {
+    return this.auth.forgotPassword(dto.email);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Set a new password with the emailed code; signs out all devices',
+  })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.email, dto.otp, dto.newPassword);
+  }
+
+  @Get('me')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Current account' })
+  me(@CurrentUser() user: AuthUser) {
+    return this.auth.me(user.id);
   }
 }

@@ -1,16 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Public } from './modules/auth/decorators';
 
 @ApiTags('Status')
-@Controller()
+@Controller('health')
 export class AppController {
-  @ApiOperation({ summary: 'Check that the API is running' })
-  @ApiOkResponse({
-    description: 'The API is available.',
-    schema: { example: { ok: true } },
-  })
+  @Public()
   @Get()
-  getRoot() {
+  @ApiOperation({ summary: 'Liveness check' })
+  @ApiOkResponse({ schema: { example: { ok: true } } })
+  health() {
     return { ok: true };
   }
 }

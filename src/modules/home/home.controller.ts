@@ -1,53 +1,24 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { HomeService } from '../../services/home.service';
-import { GetHomeDto } from './dto/get-home.dto';
-import { CurrentUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
-import type { AuthUser } from '../auth/jwt-auth.guard';
-import {
-  ApiBadRequestResponse,
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/decorators';
+import type { AuthUser } from '../auth/auth.types';
+import { GeoPaginationQueryDto } from '../../common/query.dto';
+import { HomeService } from './home.service';
 
 @ApiTags('Home')
 @ApiBearerAuth()
-@ApiUnauthorizedResponse({
-  description: 'Missing, invalid or expired access token.',
-})
-@UseGuards(JwtAuthGuard)
 @Controller('home')
 export class HomeController {
   constructor(private readonly home: HomeService) {}
 
-  @ApiOperation({
-    summary: 'Get dashboard statistics, nearby requests, and upcoming camps',
-  })
-  @ApiOkResponse({
-    description: 'Dashboard data.',
-    schema: {
-      example: {
-        userStats: {
-          userName: 'Alice Example',
-          bloodType: 'A+',
-          donations: 2,
-          points: 100,
-        },
-        nearbyRequests: [],
-        upcomingCamps: [],
-      },
-    },
-  })
-  @ApiBadRequestResponse({ description: 'Invalid query or user not found.' })
   @Get()
-  async getHomeData(@CurrentUser() user: AuthUser, @Query() dto: GetHomeDto) {
-    return this.home.getHomeData(
-      user.id,
-      dto.latitude,
-      dto.longitude,
-      dto.radiusKm,
-    );
+  @ApiOperation({
+    summary:
+      'Dashboard: my stats, nearby open requests, upcoming camps, unread count',
+    description:
+      'Uses lat/lng when given, otherwise the location saved on my profile.',
+  })
+  get(@CurrentUser() user: AuthUser, @Query() query: GeoPaginationQueryDto) {
+    return this.home.getHome(user, query);
   }
 }
