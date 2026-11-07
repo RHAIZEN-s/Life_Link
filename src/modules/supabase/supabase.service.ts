@@ -1,24 +1,21 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
+import type { Database } from '../../types/database.types';
 
 @Injectable()
-export class SupabaseService implements OnModuleInit {
-  private client: SupabaseClient;
+export class SupabaseService {
+  readonly client: SupabaseClient<Database>;
 
-  constructor(private readonly config: ConfigService) {}
-
-  onModuleInit() {
-    const url = this.config.get<string>('SUPABASE_URL');
-    const key = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
-    if (!url || !key) {
-      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
-    }
-
-    this.client = createClient(url, key, { auth: { persistSession: false } });
+  constructor(config: ConfigService) {
+    this.client = createClient<Database>(
+      config.getOrThrow<string>('SUPABASE_URL'),
+      config.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY'),
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
   }
 
-  get supabase() {
-    return this.client;
+  from<T extends keyof Database['public']['Tables']>(table: T) {
+    return this.client.from(table);
   }
 }

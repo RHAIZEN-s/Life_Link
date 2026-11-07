@@ -1,10 +1,9 @@
-import { Module } from '@nestjs/common';
-import { SupabaseModule } from '../supabase/supabase.module';
+import { Global, Module } from '@nestjs/common';
 import { ProfileController } from './profile.controller';
-import { ProfileService } from '../../services/profile.service';
+import { ProfileService } from './profile.service';
 
+@Global()
 @Module({
-  imports: [SupabaseModule],
   controllers: [ProfileController],
   providers: [ProfileService],
   exports: [ProfileService],

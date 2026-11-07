@@ -1,12 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Public } from './modules/auth/decorators';
 
-@Controller()
+@ApiTags('Status')
+@Controller('health')
 export class AppController {
-  constructor(private readonly appService: AppService) {}
-
+  @Public()
   @Get()
-  getRoot() {
+  @ApiOperation({ summary: 'Liveness check' })
+  @ApiOkResponse({ schema: { example: { ok: true } } })
+  health() {
     return { ok: true };
   }
 }
